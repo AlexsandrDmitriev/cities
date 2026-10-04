@@ -5,18 +5,23 @@
 Приложение реализует функционал администрирования справочника городов с использованием DataTables, Bootstrap 5 и AJAX.
 
 -> Структура проекта
+```
 ├── index.php                     # Основная входная точка
 ├── mod/                          # Модули
-    ├── admin/                    # Панель администратора
-    └── cities/                   # Модуль "Города"
-        ├── conf.ini              # Конфигурация
-        └── v1.0.0/               # Версия
-            ├── ModCitiesController.php    # Контроллер
-            ├── Model/Cities.php           # Модель
-            ├── cities_rb.sql              # Дамп БД
-            ├── screenshot.png             # Скриншот интерфейса
-            ├── README.md                  # Текущая документация
-            └── assets/js/cities.index.js  # Скрипты
+│    └── cities/                   # Модуль "Города"
+│        ├── conf.ini              # Конфигурация
+│        └── v1.0.0/               # Версия
+│            ├── ModCitiesController.php    # Контроллер
+│            ├── Model/Cities.php           # Модель
+│            ├── cities_rb.sql              # Дамп БД
+│            ├── screenshot.png             # Скриншот интерфейса
+│            ├── README.md                  # Текущая документация
+│            └── assets/js/cities.index.js  # Скрипты
+├── html/default/                 # Тема оформления
+│   ├── login-index.php           # Шаблон страницы логина
+│   ├── login.php                 # Шаблон логина
+│   └── model.json                # Карта шаблонов
+```
 
 -> Методы ModCitiesController.php:
 - action_index() — отображает список городов в таблице с действиями "Редактировать" и "Удалить"
@@ -33,6 +38,11 @@
 - insertCity(array $data) — вставка новой записи
 - updateCity(int $id, array $data) — обновление по ID
 - deleteCity(int $id) — удаление по ID
+
+-> Тема оформления
+- html/default/model.json - Карта шаблонов
+- html/default/login-index.php - Шаблон страницы входа
+- html/default/login.php - Базовый шаблон логина (форма)
 
 -> Требования
 - PHP 8.2+

@@ -1,0 +1,73 @@
+{
+  "name": "easterism/core2",
+  "type": "framework",
+  "description": "Fullstack framework for business application",
+  "keywords": ["framework"],
+  "homepage": "https://github.com/easterism/core2",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "misterEaster",
+      "email": "easter.by@gmail.com",
+      "role": "Developer"
+    },
+    {
+      "name": "Shabunin Igor",
+      "email": "shabuninil24@gmail.com",
+      "role": "Developer"
+    }
+  ],
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "require": {
+    "php": ">=8.2",
+    "laminas/laminas-session": "2.24.0",
+    "laminas/laminas-cache-storage-adapter-filesystem": "2.5.0",
+    "laminas/laminas-cache-storage-adapter-memcached": "2.6.0",
+    "laminas/laminas-cache-storage-adapter-redis": "2.10.0",
+    "laminas/laminas-cache": "3.13.0",
+    "laminas/laminas-validator": "2.64.2",
+    "laminas/laminas-i18n": "2.29.0",
+    "laminas/laminas-servicemanager": "^3.23.1",
+    "laminas/laminas-config": "3.10.1",
+    "laminas/laminas-permissions-acl": "2.17.0",
+    "laminas/laminas-serializer": "2.18.0",
+    "belhard/zend-db": "*",
+    "belhard/xajax": "dev-master",
+    "belhard/floatthead": "dev-master",
+    "belhard/simplemodal": "dev-master",
+    "belhard/jquery-file-upload": "dev-master",
+    "aws/aws-sdk-php": "^3.209",
+    "phpunit/phpunit": "^9.5",
+    "components/jquery": "2.1.4",
+    "monolog/monolog": "2.3.3",
+    "guzzlehttp/guzzle": "7.9.3",
+    "phpseclib/phpseclib": "~2.0",
+    "zircote/swagger-php": "6.*",
+    "phpmailer/phpmailer": "v6.9.3",
+    "predis/predis": "v3.4.2",
+    "ext-json": "*",
+    "ext-zip": "*",
+    "ext-mbstring": "*",
+    "ext-curl": "*",
+    "ext-gd": "*",
+    "ext-intl": "*",
+    "ext-pdo": "*",
+    "ext-xml": "*",
+    "ext-redis": "*"
+  },
+  "require-dev": {
+    "phpmd/phpmd" : "@stable",
+    "phpstan/phpstan": "^2.0"
+  },
+  "scripts": {
+    "post-update-cmd": [
+      "mkdir -m 0777 -p vendor/belhard/xajax/xajax_js/deferred"
+    ]
+  },
+  "config": {
+      "policy": {
+          "advisories": false
+      }
+  }
+}

@@ -1,0 +1,462 @@
+<?php
+namespace Core2\Classes\Table;
+
+require_once __DIR__ . '/../Table.php';
+
+use Core2\Classes\Table;
+
+/**
+ *
+ */
+class Data extends Table {
+
+    protected $is_fetched = false;
+
+
+    /**
+     * Получение данных.
+     * @return array
+     * @deprecated fetchRecords
+     */
+    public function fetchData(): array {
+
+        return $this->fetchRows();
+    }
+
+
+    /**
+     * Получение данных.
+     * @return Record[]
+     */
+    public function fetchRecords(): array {
+
+        return $this->fetch(Record::class);
+    }
+
+
+    /**
+     * Получение данных.
+     * @return Row[]
+     */
+    public function fetchRows(): array {
+
+        return $this->fetch(Row::class);
+    }
+
+
+    /**
+     * @param string $class_row
+     * @return array
+     * @throws Exception
+     * @throws \Zend_Db_Adapter_Exception
+     */
+    private function fetch(string $class_row = Row::class): array {
+
+        $this->preFetchRows();
+
+        if ( ! $this->is_fetched && ! empty($this->data) && is_array($this->data)) {
+            $this->is_fetched = true;
+
+            $this->records_total = count($this->data);
+
+            if ( ! empty($this->filter_controls) && ! empty($this->session->table->filter)) {
+                $this->data = $this->filterData($this->data, $this->filter_controls, $this->session->table->filter);
+            }
+
+            if ( ! empty($this->search_controls) && ! empty($this->session->table->search)) {
+                $this->data = $this->searchData($this->data, $this->search_controls, $this->session->table->search);
+            }
+
+            if (isset($this->session->table->order) &&
+                $this->session->table->order &&
+                isset($this->columns[$this->session->table->order - 1])
+            ) {
+                $column = $this->columns[$this->session->table->order - 1];
+
+                if ($column instanceof Column && $column->isSorting()) {
+                    $order_field = $column->getField();
+
+                    $first_row = current($this->data);
+
+                    if (is_array($first_row) && array_key_exists($order_field, $first_row)) {
+                        $this->data = $this->orderData($this->data, $order_field, $this->session->table->order_type);
+                    }
+                }
+            }
+
+
+            $this->records_total = count($this->data);
+
+            if ($this->records_total > (($this->current_page - 1) * $this->records_per_page) - $this->records_per_page) {
+                $data_result = $this->pageData($this->data, $this->records_per_page, $this->current_page);
+
+                if ( ! empty($data_result)) {
+                    foreach ($data_result as $row) {
+                        $this->data_rows[] = new $class_row($row);
+                    }
+                }
+
+            } else {
+                $this->data_rows = [];
+            }
+        }
+
+        return $this->data_rows;
+    }
+
+
+    /**
+     * Фильтрация
+     * @param array $data
+     * @param array $filter_rules
+     * @param array $filter_data
+     * @return array
+     * @throws \Exception
+     */
+    private function filterData(array $data, array $filter_rules, array $filter_data): array {
+
+        foreach ($data as $key => $row) {
+
+            foreach ($filter_data as $key2 => $filter_value) {
+                $filter_column = $filter_rules[$key2] ?? null;
+
+                if ($filter_column instanceof Filter) {
+                    if ($filter_value == '') {
+                        continue;
+                    }
+
+                    $filter_field = $filter_column->getField();
+
+                    if ( ! array_key_exists($filter_field, $row)) {
+                        continue;
+                    }
+
+                    switch ($filter_column->getType()) {
+                        case 'date':
+                        case 'date_periods':
+                        case 'datetime':
+                            if (is_array($filter_value)) {
+                                if ($filter_value[0] && ! $filter_value[1]) {
+                                    if (strtotime($row[$filter_field]) < strtotime($filter_value[0])) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+
+                                } elseif ( ! $filter_value[0] && $filter_value[1]) {
+                                    if (strtotime($row[$filter_field]) > strtotime($filter_value[1])) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+
+                                } elseif ($filter_value[0] && $filter_value[1]) {
+                                    if (strtotime($row[$filter_field]) < strtotime($filter_value[0]) ||
+                                        strtotime($row[$filter_field]) > strtotime($filter_value[1])
+                                    ) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+                                }
+                            }
+                            break;
+
+                        case 'date_month':
+                            if (preg_match('~^[\d]{4}\-[\d]{1,2}$~', $filter_value)) {
+                                $date_start = new \DateTime("{$filter_value}-01 00:00:00");
+                                $date_end   = new \DateTime($date_start->format('Y-m-t 23:59:59'));
+
+                                if (strtotime($row[$filter_field]) < $date_start->getTimestamp() ||
+                                    strtotime($row[$filter_field]) > $date_end->getTimestamp()
+                                ) {
+                                    unset($data[$key]);
+                                    continue 2;
+                                }
+                            }
+                            break;
+
+                        case 'number':
+                            if (is_array($filter_value)) {
+                                if ($filter_value[0] && ! $filter_value[1]) {
+                                    if ($row[$filter_field] < $filter_value[0]) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+
+                                } elseif ( ! $filter_value[0] && $filter_value[1]) {
+                                    if ($row[$filter_field] > $filter_value[1]) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+
+                                } elseif ($filter_value[0] && $filter_value[1]) {
+                                    if ($row[$filter_field] < $filter_value[0] ||
+                                        $row[$filter_field] > $filter_value[1]
+                                    ) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+                                }
+                            }
+                            break;
+
+                        case 'date_one':
+                        case 'radio':
+                        case 'select':
+                        case 'text_strict':
+                            if ($row[$filter_field] != $filter_value) {
+                                unset($data[$key]);
+                                continue 2;
+                            }
+                            break;
+
+                        case 'checkbox':
+                            if ( ! in_array('', $filter_value) && ! in_array($row[$filter_field], $filter_value)) {
+                                unset($data[$key]);
+                                continue 2;
+                            }
+                            break;
+
+                        case 'match':
+                        case 'text':
+                            $filter_value = trim($filter_value);
+
+                            if (mb_stripos($row[$filter_field], $filter_value, 0, 'utf8') === false) {
+                                unset($data[$key]);
+                                continue 2;
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+
+        return $data;
+    }
+
+
+    /**
+     * Поиск
+     * @param array $data
+     * @param array $search_rules
+     * @param array $search_data
+     * @return array
+     */
+    private function searchData(array $data, array $search_rules, array $search_data): array {
+
+        foreach ($data as $key => $row) {
+
+            foreach ($search_data as $key2 => $search_value) {
+                $search_column = $search_rules[$key2] ?? null;
+
+                if ($search_column instanceof Search) {
+                    if ($search_value == '') {
+                        continue;
+                    }
+
+                    $search_field = $search_column->getField();
+
+                    if ( ! array_key_exists($search_field, $row)) {
+                        unset($data[$key]);
+                        continue;
+                    }
+
+                    switch ($search_column->getType()) {
+                        case 'date':
+                            if (is_array($search_value)) {
+                                $search_date = substr($row[$search_field], 0, 10);
+
+                                if ($search_value[0] && ! $search_value[1]) {
+                                    if (strtotime($search_date) < strtotime($search_value[0])) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+
+                                } elseif ( ! $search_value[0] && $search_value[1]) {
+                                    if (strtotime($search_date) > strtotime($search_value[1])) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+
+                                } elseif ($search_value[0] && $search_value[1]) {
+                                    if (strtotime($search_date) < strtotime($search_value[0]) ||
+                                        strtotime($search_date) > strtotime($search_value[1])
+                                    ) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+                                }
+                            }
+                            break;
+
+                        case 'datetime':
+                            if (is_array($search_value)) {
+                                if ($search_value[0] && ! $search_value[1]) {
+                                    if (strtotime($row[$search_field]) < strtotime($search_value[0])) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+
+                                } elseif ( ! $search_value[0] && $search_value[1]) {
+                                    if (strtotime($row[$search_field]) > strtotime($search_value[1])) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+
+                                } elseif ($search_value[0] && $search_value[1]) {
+                                    if (strtotime($row[$search_field]) < strtotime($search_value[0]) ||
+                                        strtotime($row[$search_field]) > strtotime($search_value[1])
+                                    ) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+                                }
+                            }
+                            break;
+
+                        case 'number':
+                            if (is_array($search_value)) {
+                                if ($search_value[0] && ! $search_value[1]) {
+                                    if ($row[$search_field] < $search_value[0]) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+
+                                } elseif ( ! $search_value[0] && $search_value[1]) {
+                                    if ($row[$search_field] > $search_value[1]) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+
+                                } elseif ($search_value[0] && $search_value[1]) {
+                                    if ($row[$search_field] < $search_value[0] ||
+                                        $row[$search_field] > $search_value[1]
+                                    ) {
+                                        unset($data[$key]);
+                                        continue 2;
+                                    }
+                                }
+                            }
+                            break;
+
+                        case 'date_one':
+                        case 'radio':
+                        case 'select':
+                        case 'select2':
+                        case 'text_strict':
+                            if ($row[$search_field] != $search_value) {
+                                unset($data[$key]);
+                                continue 2;
+                            }
+                            break;
+
+                        case 'checkbox':
+                        case 'multiselect':
+                        case 'multiselect2':
+                            if ( ! in_array('', $search_value) && ! in_array($row[$search_field], $search_value)) {
+                                unset($data[$key]);
+                                continue 2;
+                            }
+                            break;
+
+                        case 'text':
+                        case 'autocomplete':
+                        case 'autocomplete_table':
+                            $search_value = trim($search_value);
+
+                            if ( ! is_string($row[$search_field]) ||
+                                mb_stripos($row[$search_field], $search_value, 0, 'utf8') === false
+                            ) {
+                                unset($data[$key]);
+                                continue 2;
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+
+        return $data;
+    }
+
+
+    /**
+     * Сортировка
+     * @param array  $data
+     * @param string $order_field
+     * @param string $order_type
+     * @return array
+     */
+    private function orderData(array $data, string $order_field, string $order_type = 'ASC'): array {
+        switch (strtoupper($order_type)) {
+            case 'ASC':
+                usort($data, function($a, $b) use ($order_field) {
+                    if (!isset($b[$order_field])) $b[$order_field] = null;
+                    if (!isset($a[$order_field])) $a[$order_field] = null;
+                    if (is_numeric($a[$order_field]) && is_numeric($b[$order_field])) {
+                        return $a[$order_field] <=> $b[$order_field];
+                    }
+                    return (is_scalar($a[$order_field]) || is_null($a[$order_field])) &&
+                           (is_scalar($b[$order_field]) || is_null($b[$order_field]))
+                        ? strnatcasecmp((string)$a[$order_field], (string)$b[$order_field])
+                        : 0;
+                });
+                break;
+
+            case 'DESC':
+                usort($data, function($a, $b) use ($order_field) {
+                    if (!isset($b[$order_field])) $b[$order_field] = null;
+                    if (!isset($a[$order_field])) $a[$order_field] = null;
+                    if (is_numeric($a[$order_field]) && is_numeric($b[$order_field])) {
+                        return  $b[$order_field] <=> $a[$order_field];
+                    }
+
+                    return (is_scalar($a[$order_field]) || is_null($a[$order_field])) &&
+                           (is_scalar($b[$order_field]) || is_null($b[$order_field]))
+                        ? strnatcasecmp((string)$b[$order_field], (string)$a[$order_field])
+                        : 0;
+                });
+                break;
+        }
+
+        return $data;
+    }
+
+
+    /**
+     * Страница
+     * @param array $data
+     * @param int   $records_per_page
+     * @param int   $current_page
+     * @return array
+     */
+    private function pageData(array $data, int $records_per_page, int $current_page = 1): array {
+
+        $new_data = [];
+        $offset   = ($current_page - 1) * $records_per_page;
+        $i        = 1;
+
+        foreach ($data as $key => $row) {
+            if ($current_page == 1) {
+                if ($i <= $records_per_page) {
+                    $new_data[$key] = $row;
+                } else {
+                    break;
+                }
+
+            } elseif ($current_page > 1) {
+                if ($offset < $i && $i <= $offset + $records_per_page) {
+                    $new_data[$key] = $row;
+
+                } elseif ($offset < $i && $i > $offset + $records_per_page) {
+                    break;
+                }
+
+            } else {
+                break;
+            }
+
+            $i++;
+        }
+
+        return $new_data;
+    }
+}

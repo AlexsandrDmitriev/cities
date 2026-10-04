@@ -1,0 +1,21 @@
+RewriteEngine on
+
+# Don't rewrite requests for existing files
+RewriteCond %{REQUEST_FILENAME} ^(.*\.swf)$ [OR]
+RewriteCond %{REQUEST_FILENAME} ^(.*\.jpg)$ [OR]
+RewriteCond %{REQUEST_FILENAME} ^(.*\.png)$ [OR]
+RewriteCond %{REQUEST_FILENAME} ^(.*\.gif)$ [OR]
+RewriteCond %{REQUEST_FILENAME} ^(.*\.css)$ [OR]
+RewriteCond %{REQUEST_FILENAME} ^(.*\.eot)$ [OR]
+RewriteCond %{REQUEST_FILENAME} ^(.*\.svg)$ [OR]
+RewriteCond %{REQUEST_FILENAME} ^(.*\.ttf)$ [OR]
+RewriteCond %{REQUEST_FILENAME} ^(.*\.woff)$ [OR]
+RewriteCond %{REQUEST_FILENAME} ^(.*\.woff2)$ [OR]
+RewriteCond %{REQUEST_FILENAME} ^(.*\.js)$
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(.*)$ - [L]
+
+# Rewrite all other requests to the front controller
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.php [QSA,L]

@@ -1,0 +1,5 @@
+{
+    "login": "login.php",
+    "login-index": "login-index.php",
+    "login-indexMobile": "login-index.php"
+}
